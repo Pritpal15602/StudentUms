@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Camera Click and Compress Image (Including Preview)</title>
+
+     
+   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+   <script src="https://compressjs.herokuapp.com/compress.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.12.min.js"></script>
+
+
+</head>
+
+<body>
+    
+	
+	
+
+  
+ <div class="container">
+  <div class="row">
+    
+	<br/>
+	<br/>
+	<div class="col-sm-12">
+			<div id="camImage" >
+			<label for="upload" class="custom-file-upload">
+			<image src="android-chrome-192x192.png" height="300px" width="300px"></image>
+			</label>
+			<input type="file" name="" id="upload" accept="image/*;capture=camera" capture="camera" style="display:none" >
+			</div>
+	</div>
+	<div class="col-sm-12">		
+			
+		
+			<div id="Preview1">
+			<img src="" alt="" id="preview" height="450px" width="300px"><br/></br>
+			<a onclick="Del1()" style="padding:10px;"> <image src="https://image.flaticon.com/icons/png/512/61/61848.png"  height="50px" width="50px" id="delNo"></a>
+			
+			</div>
+	</div>	
+    </div>
+    
+     
+   
+ 
+</div>
+
+ <div id="results"></div>
+ 
+  
+  
+  
+
+
+	
+	
+	
+
+	
+	
+	
+	
+	
+
+	
+	
+	<!-- <form action="server.cgi" method="post" enctype="multipart/form-data"> -->
+  <!-- <input type="file" name="image" accept="image/*;capture=camera" capture="camera"> -->
+  <!-- <input type="submit" value="Upload"> -->
+<!-- </form> -->
+	
+	<script type="text/javascript">
+	
+	
+	//////S3 Setup
+	AWS.config.region = 'ap-south-1'; // Region
+        AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+            IdentityPoolId: 'ap-south-1:3d5cb90b-de38-4e0b-a138-9a061a340517',
+        });
+
+        AWS.config.credentials.get(function(err) {
+            if (err) alert(err);
+            console.log(AWS.config.credentials);
+        });
+
+        var bucketName = 'vinaydemotest'; // Enter your bucket name
+        var bucket = new AWS.S3({
+            params: {
+                Bucket: bucketName
+            }
+        });
+
+	//////S3
+	
+	
+	
+	
+	
+	
+	
+	$( document ).ready(function() {
+	
+	$("#Preview1").hide();
+    
+	});
+	
+	function Del1()
+	{
+	//$("#preview").attr("src","")
+	$("#Preview1").hide();
+	$("#camImage").show();
+	}
+	
+	function dataURLtoFile(dataurl, filename) {
+ 
+        var arr = dataurl.split(','),
+            mime = arr[0].match(/:(.*?);/)[1],
+            bstr = atob(arr[1]), 
+            n = bstr.length, 
+            u8arr = new Uint8Array(n);
+            
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        return new File([u8arr], filename, {type:mime});
+    }
+    
+
+	
+	const compress = new Compress()
+	const preview = document.getElementById('preview')
+	const output = document.getElementById('output')
+	
+	const upload = document.getElementById('upload')
+	 var results = document.getElementById('results');
+	
+	 upload.addEventListener('change', (evt) => {
+	
+	  const files = [...evt.target.files]
+	  compress.compress(files, {
+		size: 4, // the max size in MB, defaults to 2MB
+		quality: 0.75, // the quality of the image, max is 1,
+		maxWidth: 1920, // the max width of the output image, defaults to 1920px
+		maxHeight: 1920, // the max height of the output image, defaults to 1920px
+		resize: true // defaults to true, set false if you do not want to resize the image width and height
+	  }).then((images) => {
+          
+          
+          
+          
+		//console.log(images)
+		const img = images[0]
+		// returns an array of compressed images
+		preview.src = `${img.prefix}${img.data}`
+		//console.log(img)
+		$("#camImage").hide();
+		$("#Preview1").show();
+	
+		var d = new Date();
+		            
+   
+	    //Usage example:
+		var file = dataURLtoFile(`${img.prefix}${img.data}`,'Pritpal_'+d.toISOString());
+		//console.log(file);
+		
+		const { endSizeInMb, initialSizeInMb, iterations, sizeReducedInPercent, elapsedTimeInSeconds, alt } = img
+		
+		
+		 if (file) {
+
+                results.innerHTML = '';
+                var objKey = file.name;
+                var params = {
+                    Key: objKey,
+                    ContentType: file.type,
+                    Body: file,
+                    ACL: 'private'
+                };
+				//tags: [{Key: 'CourseCode', Value: 'CSE101'}, {Key: 'Regno', Value: '21100001132'}, {Key:'QuestionId', Value:'1'}, {Key:'AnswerId', Value:'1'}]
+
+                bucket.putObject(params, function(err, data) {
+                    if (err) {
+                        results.innerHTML = 'ERROR: ' + err;
+                    } else {
+                        listObjs();
+                    }
+                });
+            } else {
+                results.innerHTML = 'Nothing to upload.';
+            }
+		
+		
+	
+		//output.innerHTML = `<b>Start Size:</b> ${initialSizeInMb} MB <br/><b>End Size:</b> ${endSizeInMb} MB <br/><b>Compression Cycles:</b> ${iterations} <br/><b>Size Reduced:</b> ${sizeReducedInPercent} % <br/><b>File Name:</b> ${alt}`
+	  
+      
+      
+      
+      
+      
+      
+      
+      
+      })
+	}, false)
+	
+
+	function listObjs() {
+				var prefix = '';
+				bucket.listObjects({
+					Prefix: prefix
+				}, function(err, data) {
+					if (err) {
+						results.innerHTML = 'ERROR: ' + err;
+					} else {
+						var objKeys = "";
+						data.Contents.forEach(function(obj) {
+							objKeys += obj.Key + "<br>";
+						});
+						results.innerHTML = objKeys;
+					}
+				});
+			}
+
+
+
+
+	</script>
+	
+
+</body>
+
+</html>
